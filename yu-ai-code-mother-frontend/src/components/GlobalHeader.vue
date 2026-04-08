@@ -1,7 +1,6 @@
 <template>
   <a-layout-header class="header">
     <a-row :wrap="false">
-      <!-- 左侧：Logo和标题 -->
       <a-col flex="200px">
         <RouterLink to="/">
           <div class="header-left">
@@ -10,7 +9,6 @@
           </div>
         </RouterLink>
       </a-col>
-      <!-- 中间：导航菜单 -->
       <a-col flex="auto">
         <a-menu
           v-model:selectedKeys="selectedKeys"
@@ -19,17 +17,22 @@
           @click="handleMenuClick"
         />
       </a-col>
-      <!-- 右侧：用户操作区域 -->
       <a-col>
         <div class="user-login-status">
           <div v-if="loginUserStore.loginUser.id">
             <a-dropdown>
-              <a-space>
-                <a-avatar :src="loginUserStore.loginUser.userAvatar" />
+              <a-space class="user-entry">
+                <a-avatar :src="loginUserStore.loginUser.userAvatar">
+                  {{ loginUserStore.loginUser.userName?.charAt(0) || 'U' }}
+                </a-avatar>
                 {{ loginUserStore.loginUser.userName ?? '无名' }}
               </a-space>
               <template #overlay>
                 <a-menu>
+                  <a-menu-item @click="openPersonalInfo">
+                    <UserOutlined />
+                    个人信息
+                  </a-menu-item>
                   <a-menu-item @click="doLogout">
                     <LogoutOutlined />
                     退出登录
@@ -44,6 +47,12 @@
         </div>
       </a-col>
     </a-row>
+    <PersonalInfoModal
+      v-model:open="personalInfoVisible"
+      :user="loginUserStore.loginUser"
+      :submitting="savingProfile"
+      @submit="handleProfileSubmit"
+    />
   </a-layout-header>
 </template>
 
@@ -51,20 +60,21 @@
 import { computed, h, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { type MenuProps, message } from 'ant-design-vue'
-import { useLoginUserStore } from '@/stores/loginUser.ts'
-import { userLogout } from '@/api/userController.ts'
-import { LogoutOutlined, HomeOutlined } from '@ant-design/icons-vue'
+import { HomeOutlined, LogoutOutlined, UserOutlined } from '@ant-design/icons-vue'
+import PersonalInfoModal from '@/components/PersonalInfoModal.vue'
+import { updateMyUser, userLogout } from '@/api/userController'
+import { useLoginUserStore } from '@/stores/loginUser'
 
 const loginUserStore = useLoginUserStore()
 const router = useRouter()
-// 当前选中菜单
 const selectedKeys = ref<string[]>(['/'])
-// 监听路由变化，更新当前选中菜单
-router.afterEach((to, from, next) => {
+const personalInfoVisible = ref(false)
+const savingProfile = ref(false)
+
+router.afterEach((to) => {
   selectedKeys.value = [to.path]
 })
 
-// 菜单配置项
 const originItems = [
   {
     key: '/',
@@ -84,7 +94,6 @@ const originItems = [
   },
 ]
 
-// 过滤菜单项
 const filterMenus = (menus = [] as MenuProps['items']) => {
   return menus?.filter((menu) => {
     const menuKey = menu?.key as string
@@ -98,20 +107,38 @@ const filterMenus = (menus = [] as MenuProps['items']) => {
   })
 }
 
-// 展示在菜单的路由数组
 const menuItems = computed<MenuProps['items']>(() => filterMenus(originItems))
 
-// 处理菜单点击
 const handleMenuClick: MenuProps['onClick'] = (e) => {
   const key = e.key as string
   selectedKeys.value = [key]
-  // 跳转到对应页面
   if (key.startsWith('/')) {
     router.push(key)
   }
 }
 
-// 退出登录
+const openPersonalInfo = () => {
+  personalInfoVisible.value = true
+}
+
+const handleProfileSubmit = async (formData: API.UserUpdateRequest) => {
+  savingProfile.value = true
+  try {
+    const res = await updateMyUser(formData)
+    if (res.data.code === 0) {
+      await loginUserStore.fetchLoginUser()
+      message.success('个人信息已更新')
+    } else {
+      message.error('更新失败，' + res.data.message)
+    }
+  } catch (error) {
+    console.error('更新个人信息失败：', error)
+    message.error('更新个人信息失败，请稍后重试')
+  } finally {
+    savingProfile.value = false
+  }
+}
+
 const doLogout = async () => {
   const res = await userLogout()
   if (res.data.code === 0) {
@@ -147,6 +174,16 @@ const doLogout = async () => {
   margin: 0;
   font-size: 18px;
   color: #1890ff;
+}
+
+.user-login-status {
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+
+.user-entry {
+  cursor: pointer;
 }
 
 .ant-menu-horizontal {
