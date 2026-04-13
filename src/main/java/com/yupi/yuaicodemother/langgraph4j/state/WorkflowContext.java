@@ -2,6 +2,7 @@ package com.yupi.yuaicodemother.langgraph4j.state;
 
 import com.yupi.yuaicodemother.langgraph4j.model.ImageCollectionPlan;
 import com.yupi.yuaicodemother.langgraph4j.model.ImageResource;
+import com.yupi.yuaicodemother.langgraph4j.model.MaterialCollectionSummary;
 import com.yupi.yuaicodemother.langgraph4j.model.QualityResult;
 import com.yupi.yuaicodemother.model.enums.CodeGenTypeEnum;
 import lombok.AllArgsConstructor;
@@ -12,6 +13,7 @@ import org.bsc.langgraph4j.prebuilt.MessagesState;
 
 import java.io.Serial;
 import java.io.Serializable;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -92,6 +94,11 @@ public class WorkflowContext implements Serializable {
     private List<ImageResource> diagrams;
     private List<ImageResource> logos;
 
+    /**
+     * Execution summary for each material collection node.
+     */
+    private Map<String, MaterialCollectionSummary> materialCollectionSummaries;
+
     @Serial
     private static final long serialVersionUID = 1L;
 
@@ -109,5 +116,15 @@ public class WorkflowContext implements Serializable {
      */
     public static Map<String, Object> saveContext(WorkflowContext context) {
         return Map.of(WORKFLOW_CONTEXT_KEY, context);
+    }
+
+    public void putMaterialCollectionSummary(String nodeName, MaterialCollectionSummary summary) {
+        if (summary == null || nodeName == null || nodeName.isBlank()) {
+            return;
+        }
+        if (materialCollectionSummaries == null) {
+            materialCollectionSummaries = new LinkedHashMap<>();
+        }
+        materialCollectionSummaries.put(nodeName, summary);
     }
 }
